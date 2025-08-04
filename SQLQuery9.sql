@@ -1,80 +1,85 @@
--- Creating Department table 
-DROP TABLE IF EXISTS Department;
-DROP TABLE IF EXISTS Employee;
+use collegeDB;
+-- DDL: Create Tables with Constraints
 
-
-create TABLE Department(
-DeptID int primary KEY,
-DeptName varchar(50)
+CREATE TABLE Customers (
+    CustomerID INT PRIMARY KEY,
+    Name VARCHAR(100) NOT NULL,
+    Email VARCHAR(100) UNIQUE,
+    Age INT CHECK (Age >= 18)
 );
 
--- creating a Employee table 
-create TABLE Employee(
-EmpID INT primary KEY,
-EmpName  varchar(100),
-Salary decimal(10,2),
-DeptID INT,
-ManagerID INT,
-DateOfJoining date
+CREATE TABLE Orders (
+    OrderID INT PRIMARY KEY,
+    OrderDate DATE NOT NULL,
+    Amount DECIMAL(10, 2) CHECK (Amount > 0),
+    CustomerID INT,
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID)
 );
 
-INSERT INTO Department VALUES(1,'HR'),(2,'Finance'),(3,'IT'),(4,'Customer Support');
-
-Select * from Department;
-INSERT INTO Employee VALUES
-(101,'Raj', 70000.45,3,null,'2024-01-15'),
-(102,'Rajiv', 35000,2,101,'2025-01-15'),
-(103,'Rajesh', 40000.75,3,101,'2021-01-15'),
-(104,'Rajni', 50000,3,102,'2022-01-15'),
-(105,'Rani', 70000,1,null,'2020-01-15'),
-(106,'Kishor', 80000,4,null,'2018-01-15'),
-(107,'Bhim', 80000,5,null,'2018-01-16');
+-- Insert Initial Data
 
 
-Select * from Employee;
+INSERT INTO Customers VALUES (1, 'Alice Smith', 'alice@example.com', 28);
+INSERT INTO Customers VALUES (2, 'Bob Johnson', 'bob@example.com', 35);
 
--- implementing built-in Scalar function
+INSERT INTO Orders VALUES (101, '2025-08-01', 250.00, 1);
+INSERT INTO Orders VALUES (102, '2025-08-02', 180.50, 2);
 
-SELECT EmpName,Len(EmpName) As NameLength FROM Employee;
 
-select EmpName, round(Salary,-3) AS RoundedSalary FROM Employee;
---positive value rounds  to decimal place (Round(123.456,2) -> 123.46)
---negative Vlaue rounds to power of 10 o the left( Round(12345,-2)-> 12300)
+-- Commit Initial Data
 
-select GETDATE() AS CurrentDate;
+COMMIT;
 
--- Aggregate Functions 
 
-select Count(*) AS TotalEmployees FROM Employee;
-SELECT round(avg(Salary),-2) AS AverageSalary FROM Employee;
-Select max(Salary) AS MaxSalary FROM Employee;
+-- View Initial Data
 
--- Joins 
---Inner Joins : Returns only matching rows from both table 
+SELECT * FROM Customers;
+SELECT * FROM Orders;
 
-Select E.EmpName, D.DeptName
-FROM Employee E
-INNER JOIN Department D ON E.DeptID = D.DeptID;
--- Left Joins : returns all rows from the left table and matched rows from the right table 
+-- ==============================
+-- DCL: Grant Permissions
+-- ==============================
+GRANT SELECT ON Customers TO PUBLIC;
+GRANT SELECT ON Orders TO PUBLIC;
 
-Select E.EmpName, D.DeptName
-FROM Employee E 
-LEFT JOIN  Department D ON E.DeptID = D.DeptID; 
--- Right Joins: returns alll rows from the right table  and matched rows from the left
+-- ==============================
+-- Scenario 1: Successful Transaction with COMMIT
+-- ==============================
+BEGIN TRANSACTION;
 
-Select E.EmpName , D.DeptName
-FROM Employee E
-right JOIN Department D ON E.DeptID = D.DeptID;
--- Full Joins : Returns all rows where there is a match in one of the table 
+INSERT INTO Customers VALUES (3, 'Charlie Brown', 'charlie@example.com', 30);
+INSERT INTO Orders VALUES (103, '2025-08-03', 300.00, 3);
 
-Select E.EmpName , D.DeptName
-FROM Employee E
-FUll OUTER JOIN Department D ON E.DeptID = D.DeptID;
+COMMIT;
 
--- Self join : a table is joined with itself, ofthe using aliases.
--- Here we are returning Emp- > Manager mapping 
-Select E1.EmpName AS Employee, E2.EmpName AS Manager
-FROM Employee E1
-LEFT JOIN  Employee E2  ON E1.ManagerID = E2.EmpID;
--- cross join : returns the cartsian product of two table(All possible combination)
-SELECT EmpName, 'DeptName' FROM Employee cross join "Department"
+SELECT * FROM Customers WHERE CustomerID = 3;
+SELECT * FROM Orders WHERE OrderID = 103;
+
+-- View after Scenario 1
+SELECT * FROM Customers;
+SELECT * FROM Orders;
+
+-- ==============================
+-- Scenario 2: Failed Transaction with ROLLBACK
+-- ==============================
+BEGIN TRANSACTION;
+
+-- This will violate the CHECK constraint (Age < 18)
+INSERT INTO Customers VALUES (4, 'Danny Danger', 'danny@example.com', 16);
+
+-- Attempt to insert related order (won't happen due to failure above)
+INSERT INTO Orders VALUES (104, '2025-08-04', 150.00, 4);
+
+-- Rollback the transaction
+ROLLBACK;
+
+-- View after Scenario 2 (Danny should NOT appear)
+SELECT * FROM Customers;
+SELECT * FROM Orders;
+
+-- ==============================
+-- DCL: Revoke Permissions
+-- ==============================
+REVOKE SELECT ON Customers FROM PUBLIC;
+REVOKE SELECT ON Orders FROM PUBLIC;
+;
